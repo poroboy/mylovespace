@@ -12,6 +12,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" sizes="180x180">
   <link rel="stylesheet" href="/theme.css">
 
+
   <style>
     /* โครง UI เบา ๆ */
     * { box-sizing: border-box; }
@@ -63,6 +64,10 @@
   </script>
 </head>
 <body>
+
+
+  <button onclick="addUser()">Add User</button>
+  <button onclick="getUsers()">Get Users</button>
   <!-- Gate -->
   <section id="gate">
     <div class="card">
@@ -171,8 +176,8 @@
   </nav>
   <!-- Firebase (CDN) -->
   <script type="module">
-    // 1) วางค่าจาก Project settings → Web App (</>) ของคุณแทนด้านล่าง
-    const firebaseConfig = {
+  // 1) config ของโปรเจ็กต์คุณ
+  const firebaseConfig = {
     apiKey: "AIzaSyA0uh3epDJVeJxVVL-Khj4y7-hZJ6RNuZk",
     authDomain: "mylovespace-demo.firebaseapp.com",
     projectId: "mylovespace-demo",
@@ -180,31 +185,50 @@
     messagingSenderId: "916222730232",
     appId: "1:916222730232:web:bd5fb50199a4a383e3400d",
     measurementId: "G-9ZD0T5EPLJ"
-    };
+  };
 
-    // 2) โหลด SDK และ init
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-    import { getFirestore, serverTimestamp, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
+  // 2) ใช้ SDK แบบ modular อย่างเดียว
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  import {
+    getFirestore, serverTimestamp,
+    collection, addDoc, doc, setDoc, deleteDoc,
+    onSnapshot, query, orderBy, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import {
+    getStorage, ref, uploadBytes, getDownloadURL, deleteObject
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
 
-    // 3) ล็อกอินแบบ Anonymous อัตโนมัติ (เพื่อทดสอบ)
-    signInAnonymously(auth).catch(console.error);
+  // 3) ล็อกอิน Anonymous (ทดสอบ)
+  signInAnonymously(auth).catch(console.error);
+  onAuthStateChanged(auth, u => console.log("Firebase signed in as:", u?.uid || null));
 
-    // 4) โยนอ็อบเจ็กต์ให้ไฟล์ app.js เรียกใช้ได้ง่าย ๆ
-    window._fb = {
-      app, auth, db, storage,
-      fs: { serverTimestamp, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, query, orderBy },
-      st: { ref, uploadBytes, getDownloadURL, deleteObject }
-    };
+  // 4) ฟังก์ชันทดสอบ (ปุ่ม Add/Get Users)
+  async function addUser() {
+    const ref = await addDoc(collection(db, "users"), { name: "Claire", age: 28, createdAt: serverTimestamp() });
+    console.log("Document written with ID:", ref.id);
+  }
+  async function getUsers() {
+    const snap = await getDocs(collection(db, "users"));
+    snap.forEach(d => console.log(d.id, "=>", d.data()));
+  }
+  // ทำให้เรียกได้จากปุ่มในหน้า (เพราะ module ไม่ติด global)
+  window.addUser = addUser;
+  window.getUsers = getUsers;
 
-    onAuthStateChanged(auth, u => console.log("Firebase signed in as:", u?.uid || null));
-  </script>
+  // 5) โยนตัวช่วยให้ /app.js ใช้
+  window._fb = {
+    app, auth, db, storage,
+    fs: { serverTimestamp, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, query, orderBy },
+    st: { ref, uploadBytes, getDownloadURL, deleteObject }
+  };
+</script>
+
 
   <script src="/app.js"></script>
   <script>
