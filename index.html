@@ -169,7 +169,114 @@
     <button data-tab="calendar">Calendar</button>
     <button data-tab="notes">Notes</button>
   </nav>
+  <!-- Firebase (CDN) -->
+  <script type="module">
+    // 1) วางค่าจาก Project settings → Web App (</>) ของคุณแทนด้านล่าง
+    const firebaseConfig = {
+    apiKey: "AIzaSyA0uh3epDJVeJxVVL-Khj4y7-hZJ6RNuZk",
+    authDomain: "mylovespace-demo.firebaseapp.com",
+    projectId: "mylovespace-demo",
+    storageBucket: "mylovespace-demo.appspot.com",
+    messagingSenderId: "916222730232",
+    appId: "1:916222730232:web:bd5fb50199a4a383e3400d",
+    measurementId: "G-9ZD0T5EPLJ"
+    };
+
+    // 2) โหลด SDK และ init
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import { getFirestore, serverTimestamp, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // 3) ล็อกอินแบบ Anonymous อัตโนมัติ (เพื่อทดสอบ)
+    signInAnonymously(auth).catch(console.error);
+
+    // 4) โยนอ็อบเจ็กต์ให้ไฟล์ app.js เรียกใช้ได้ง่าย ๆ
+    window._fb = {
+      app, auth, db, storage,
+      fs: { serverTimestamp, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, query, orderBy },
+      st: { ref, uploadBytes, getDownloadURL, deleteObject }
+    };
+
+    onAuthStateChanged(auth, u => console.log("Firebase signed in as:", u?.uid || null));
+  </script>
 
   <script src="/app.js"></script>
+  <script>
+
+      // ===== Minimal Cloud Sync (ใช้กับเว็บเดโม่) =====
+      (function cloudSync(){
+        if (!window._fb) return;
+        const { db, storage, fs, st } = window._fb;
+        const colMoments = fs.collection(db, "moments");
+        const colPhotos  = fs.collection(db, "photos");
+        const colEvents  = fs.collection(db, "events");
+        const docNotes   = (id="shared") => fs.doc(db, "notes", id);
+
+        const oldAddMoment = document.querySelector('#btn-add-moment')?.onclick;
+        document.querySelector('#btn-add-moment').onclick = async (e) => {
+          await oldAddMoment?.(e);
+          const last = window.DB?.moments?.at(-1);
+          if (!last) return;
+          try {
+            await fs.addDoc(colMoments, { text:last.text, date:last.date, tags:last.tags||[], createdAt: fs.serverTimestamp() });
+            console.log('synced moment');
+          } catch(err){ console.warn(err); }
+        };
+
+        const oldUpload = document.querySelector('#btn-upload')?.onclick;
+        document.querySelector('#btn-upload').onclick = async (e) => {
+          await oldUpload?.(e);
+          const last = window.DB?.gallery?.[0];
+          if (!last) return;
+          try{
+            const b64 = last.dataURL.split(',')[1];
+            const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            const key = `uploads/${Date.now()}-${last.id}.jpg`;
+            const r = st.ref(storage, key);
+            await st.uploadBytes(r, bin, { contentType: 'image/jpeg' });
+            const url = await st.getDownloadURL(r);
+            await fs.addDoc(colPhotos, { url, storagePath:key, createdAt: fs.serverTimestamp() });
+            console.log('synced photo');
+          }catch(err){ console.warn(err); }
+        };
+
+        const oldAddEv = document.querySelector('#btn-add-ev')?.onclick;
+        document.querySelector('#btn-add-ev').onclick = async (e) => {
+          await oldAddEv?.(e);
+          const last = window.DB?.events?.at(-1);
+          if (!last) return;
+          try{
+            await fs.addDoc(colEvents, { title:last.title, atISO:last.atISO, createdAt: fs.serverTimestamp() });
+            console.log('synced event');
+          }catch(err){ console.warn(err); }
+        };
+
+        const oldSave = document.querySelector('#btn-save-note')?.onclick;
+        document.querySelector('#btn-save-note').onclick = async (e) => {
+          await oldSave?.(e);
+          try{
+            await fs.setDoc(docNotes(), { text: window.DB?.note || '', updatedAt: fs.serverTimestamp() }, { merge:true });
+            console.log('synced note');
+          }catch(err){ console.warn(err); }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+          fs.onSnapshot(docNotes(), (snap) => {
+            const data = snap.data();
+            if (data?.text && data.text !== window.DB?.note) {
+              window.DB.note = data.text;
+              window.renderNote?.();
+            }
+          });
+        });
+      })();
+
+  </script>
 </body>
 </html>
