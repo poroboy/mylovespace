@@ -1,10 +1,175 @@
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#FF7FA5">
-<link rel="icon" href="/favicon.ico">
-<link rel="apple-touch-icon" href="/apple-touch-icon-180.png" sizes="180x180">
-<link rel="stylesheet" href="/theme.css">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(console.error);
-  }
-</script>
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Love Space</title>
+
+  <!-- PWA / Theme -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#FF7FA5">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" sizes="180x180">
+  <link rel="stylesheet" href="/theme.css">
+
+  <style>
+    /* โครง UI เบา ๆ */
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial; }
+    header { position: sticky; top: 0; background: var(--bg); backdrop-filter: blur(6px); z-index: 20; }
+    .container{ max-width: 900px; margin: 0 auto; padding: 16px; }
+    .brand{ display:flex; align-items:center; gap:10px; padding:12px 16px; }
+    .brand h1{ margin:0; font-size: 20px; }
+    nav.tabs{
+      position: sticky; bottom:0; background:var(--bg); border-top:1px solid #eee;
+      display:grid; grid-template-columns: repeat(5, 1fr); gap:0; z-index:30;
+    }
+    nav.tabs button{
+      appearance:none; border:0; background:none; padding:12px 6px; font-weight:600; color:#555;
+    }
+    nav.tabs button.active{ color: var(--primary); }
+    section.view{ display:none; padding: 8px 16px 80px; }
+    section.view.active{ display:block; }
+
+    /* Gate */
+    #gate{ min-height: 100dvh; display:flex; align-items:center; justify-content:center; }
+    #gate .card{ padding:24px; max-width: 360px; text-align:center; }
+    #gate h2{ margin: 0 0 4px; }
+    #gate .hint{ color:#777; font-size:13px; margin:0 0 16px; }
+    .input, .select, textarea{
+      width:100%; padding:12px 14px; border:1px solid #eee; border-radius:14px; outline:none;
+      background:#fff;
+    }
+    .row{ display:flex; gap:10px; align-items:center; }
+    .row > *{ flex:1; }
+    .mt8{ margin-top:8px;} .mt12{ margin-top:12px;} .mt16{ margin-top:16px;} .mt24{ margin-top:24px;}
+    .pill{ display:inline-block; padding:6px 10px; border-radius:999px; background:var(--accent); margin-right:6px; margin-bottom:6px; font-size:12px; }
+    .gallery{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+    .gallery img{ width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:12px; }
+    .list{ display:flex; flex-direction:column; gap:10px;}
+    .item{ padding:12px; border-radius:16px; background:#fff; box-shadow: var(--shadow); }
+    .item h4{ margin:0 0 6px; }
+    .muted{ color:#888; font-size:12px;}
+    .btn{ display:inline-block; padding:10px 14px; border-radius:12px; background:var(--primary); color:#fff; border:0; cursor:pointer; }
+    .btn.ghost{ background:#fff; color:var(--primary); border:2px solid var(--primary); }
+    .right{ float:right; }
+  </style>
+
+  <script>
+    // ลงทะเบียน SW (กรณียังไม่ได้)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    }
+  </script>
+</head>
+<body>
+  <!-- Gate -->
+  <section id="gate">
+    <div class="card">
+      <h2>My Love 💖</h2>
+      <p class="hint">พิมพ์ตัวอักษรพิเศษของเราเพื่อเข้าเว็บ</p>
+      <input id="gate-input" class="input" type="password" placeholder="ใส่ตัวอักษร" autocomplete="off" />
+      <button id="gate-enter" class="btn mt12" style="width:100%">เข้าเว็บ</button>
+      <p class="muted mt8">Session อยู่ได้ 12 ชม. | เปลี่ยนค่าได้ภายหลัง</p>
+    </div>
+  </section>
+
+  <!-- App -->
+  <header>
+    <div class="brand container">
+      <img src="/icon-192.png" alt="" width="24" height="24" style="border-radius:8px">
+      <h1>My Love Space</h1>
+      <button id="btn-backup" class="btn ghost right">Backup</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- HOME -->
+    <section id="home" class="view active">
+      <h3>สวัสดีคนเก่ง 💕</h3>
+      <div class="item">
+        <h4>ภาพรวม</h4>
+        <div class="muted" id="stats">กำลังโหลด…</div>
+      </div>
+      <div class="item mt12">
+        <h4>อีเวนต์ถัดไป</h4>
+        <div id="next-event" class="muted">—</div>
+      </div>
+    </section>
+
+    <!-- MOMENTS -->
+    <section id="moments" class="view">
+      <h3>Moments</h3>
+      <div class="item">
+        <div class="row">
+          <input id="moment-text" class="input" placeholder="เขียนโมเมนต์น่ารัก ๆ" />
+        </div>
+        <div class="row mt8">
+          <input id="moment-date" class="input" type="date" />
+          <select id="moment-tag" class="select">
+            <option value="">เลือกแท็ก</option>
+            <option>date</option>
+            <option>birthday</option>
+            <option>anniversary</option>
+          </select>
+        </div>
+        <div class="row mt8">
+          <input id="moment-newtag" class="input" placeholder="เพิ่มแท็กเอง (เช่น trip, gift)" />
+          <button id="btn-add-moment" class="btn">เพิ่ม</button>
+        </div>
+      </div>
+      <div id="moment-list" class="list mt12"></div>
+    </section>
+
+    <!-- GALLERY -->
+    <section id="gallery" class="view">
+      <h3>Gallery</h3>
+      <div class="item">
+        <input id="file" type="file" accept="image/*" />
+        <button id="btn-upload" class="btn mt8">อัปโหลด (≤ 5MB)</button>
+        <div class="muted mt8">ทั้งสองคนอัปได้ (ตอนนี้เก็บในเครื่องทดสอบก่อน)</div>
+      </div>
+      <div id="grid" class="gallery mt12"></div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section id="calendar" class="view">
+      <h3>Calendar</h3>
+      <div class="item">
+        <div class="row">
+          <input id="ev-title" class="input" placeholder="หัวข้ออีเวนต์" />
+        </div>
+        <div class="row mt8">
+          <input id="ev-date" class="input" type="date" />
+          <input id="ev-time" class="input" type="time" />
+        </div>
+        <div class="row mt8">
+          <button id="btn-add-ev" class="btn">เพิ่มอีเวนต์</button>
+          <button id="btn-export-ics" class="btn ghost">ดาวน์โหลด .ics</button>
+        </div>
+      </div>
+      <div id="ev-list" class="list mt12"></div>
+    </section>
+
+    <!-- NOTES -->
+    <section id="notes" class="view">
+      <h3>Love Notes</h3>
+      <div class="item">
+        <textarea id="note" rows="5" class="input" placeholder="ฝากข้อความหวาน ๆ ถึงกัน"></textarea>
+        <button id="btn-save-note" class="btn mt12">บันทึก</button>
+      </div>
+      <div id="note-preview" class="item mt12"></div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button data-tab="home" class="active">Home</button>
+    <button data-tab="moments">Moments</button>
+    <button data-tab="gallery">Gallery</button>
+    <button data-tab="calendar">Calendar</button>
+    <button data-tab="notes">Notes</button>
+  </nav>
+
+  <script src="/app.js"></script>
+</body>
+</html>
